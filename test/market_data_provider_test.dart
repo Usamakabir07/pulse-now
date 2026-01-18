@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_now_assessment/providers/market_data_provider.dart';
 import 'package:pulse_now_assessment/services/api_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:pulse_now_assessment/services/websocket_service.dart';
 
 class FakeApiService extends ApiService {
   FakeApiService()
@@ -26,11 +28,38 @@ class FakeApiService extends ApiService {
   }
 }
 
+class FakeWebSocketService extends WebSocketService {
+  FakeWebSocketService()
+    : _controller = StreamController<Map<String, dynamic>>.broadcast(),
+      super(url: 'ws://test');
+
+  final StreamController<Map<String, dynamic>> _controller;
+
+  @override
+  Stream<Map<String, dynamic>> get stream => _controller.stream;
+
+  @override
+  void start() {}
+
+  void emit(Map<String, dynamic> msg) => _controller.add(msg);
+
+  @override
+  void dispose() {
+    _controller.close();
+    super.dispose();
+  }
+}
+
 void main() {
   test(
     'MarketDataProvider.loadMarketData sets loading and populates data',
     () async {
-      final provider = MarketDataProvider(apiService: FakeApiService());
+      final ws = FakeWebSocketService();
+
+      final provider = MarketDataProvider(
+        apiService: FakeApiService(),
+        wsService: ws,
+      );
 
       expect(provider.isLoading, false);
       expect(provider.marketData, isEmpty);
@@ -44,6 +73,9 @@ void main() {
       expect(provider.error, isNull);
       expect(provider.marketData.length, 1);
       expect(provider.marketData.first.symbol, 'BTC/USD');
+
+      provider.dispose();
+      ws.dispose();
     },
   );
 }

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:pulse_now_assessment/providers/analytics_provider.dart';
 import 'package:pulse_now_assessment/providers/portfolio_provider.dart';
 import 'package:pulse_now_assessment/services/analytics_tracker.dart';
+import 'package:pulse_now_assessment/services/websocket_service.dart';
+import 'package:pulse_now_assessment/utils/constants.dart';
 import 'screens/home_screen.dart';
 import 'providers/market_data_provider.dart';
 
@@ -32,7 +34,15 @@ class _PulseNowAppState extends State<PulseNowApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => MarketDataProvider()),
+        Provider<WebSocketService>(
+          create: (_) => WebSocketService(url: AppConstants.wsUrl),
+          dispose: (_, s) => s.dispose(),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) =>
+              MarketDataProvider(wsService: ctx.read<WebSocketService>())
+                ..loadMarketData(),
+        ),
         ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
         ChangeNotifierProvider(create: (_) => PortfolioProvider()),
       ],

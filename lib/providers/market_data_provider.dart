@@ -1,18 +1,19 @@
 import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:pulse_now_assessment/services/websocket_service.dart';
 
 import '../models/market_data_model.dart';
 import '../services/api_service.dart';
-import '../utils/constants.dart';
 
 class MarketDataProvider with ChangeNotifier {
-  final ApiService _apiService;
+  MarketDataProvider({
+    ApiService? apiService,
+    required WebSocketService wsService,
+  }) : _apiService = apiService ?? ApiService(),
+       _wsService = wsService;
 
-  MarketDataProvider({ApiService? apiService})
-    : _apiService = apiService ?? ApiService();
+  final ApiService _apiService;
+  final WebSocketService _wsService;
 
   List<MarketData> _marketData = [];
   bool _isLoading = false;
@@ -22,10 +23,7 @@ class MarketDataProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  WebSocketChannel? _channel;
-  StreamSubscription? _wsSub;
-  Timer? _reconnectTimer;
-  bool _wsConnecting = false;
+  StreamSubscription<Map<String, dynamic>>? _wsSub;
 
   Future<void> loadMarketData() async {
     _isLoading = true;
@@ -35,8 +33,7 @@ class MarketDataProvider with ChangeNotifier {
     try {
       final data = await _apiService.getMarketData();
       _marketData = data.map((json) => MarketData.fromJson(json)).toList();
-
-      _ensureWebSocketConnected();
+      _startListeningToWs();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -45,59 +42,27 @@ class MarketDataProvider with ChangeNotifier {
     }
   }
 
-  void _ensureWebSocketConnected() {
-    if (_channel != null || _wsConnecting) return;
+  void _startListeningToWs() {
+    _wsService.start();
 
-    _wsConnecting = true;
-    _reconnectTimer?.cancel();
-
-    try {
-      _channel = WebSocketChannel.connect(Uri.parse(AppConstants.wsUrl));
-
-      _wsSub = _channel!.stream.listen(
-        (message) => _handleWsMessage(message),
-        onError: (err) => _scheduleReconnect('WebSocket error: $err'),
-        onDone: () => _scheduleReconnect('WebSocket closed'),
-        cancelOnError: true,
-      );
-    } catch (e) {
-      _scheduleReconnect('WebSocket connect failed: $e');
-    } finally {
-      _wsConnecting = false;
-    }
+    _wsSub?.cancel();
+    _wsSub = _wsService.stream.listen((map) {
+      _handleWsMap(map);
+    });
   }
 
-  void _scheduleReconnect(String reason) {
-    _disposeWebSocket();
-    _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(
-      const Duration(seconds: 2),
-      _ensureWebSocketConnected,
-    );
-  }
-
-  void _handleWsMessage(dynamic message) {
-    dynamic decoded;
-    try {
-      decoded = message is String ? json.decode(message) : message;
-    } catch (_) {
-      return;
-    }
-
-    if (decoded is! Map) return;
-    final map = Map<String, dynamic>.from(decoded);
-
+  void _handleWsMap(Map<String, dynamic> map) {
     if (map['type'] != 'market_update') return;
 
     final data = map['data'];
     if (data is! Map) return;
 
     final itemJson = Map<String, dynamic>.from(data);
+
     if (itemJson['changePercent24h'] == null) {
       final price = _toDouble(itemJson['price']);
       final change = _toDouble(itemJson['change24h']);
       final baseline = price - change;
-
       final pct = (baseline.abs() < 1e-9) ? 0.0 : (change / baseline) * 100.0;
       itemJson['changePercent24h'] = pct;
     }
@@ -124,21 +89,9 @@ class MarketDataProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void _disposeWebSocket() {
-    _wsSub?.cancel();
-    _wsSub = null;
-
-    try {
-      _channel?.sink.close();
-    } catch (_) {}
-
-    _channel = null;
-  }
-
   @override
   void dispose() {
-    _reconnectTimer?.cancel();
-    _disposeWebSocket();
+    _wsSub?.cancel();
     super.dispose();
   }
 }
