@@ -8,33 +8,35 @@ PulseNow is a Flutter mobile application that displays crypto market data in a c
 
 The Flutter project is organized using a feature-based, layered architecture:
 
+```text
 lib/
-├── main.dart # App entry point, theme setup, and providers
+├── main.dart                 # App entry point, theme setup, and providers
 ├── utils/
-│ └── constants.dart # App-wide constants (API URLs, endpoints, colors)
+│   └── constants.dart      # App-wide constants (API URLs, endpoints, colors)
 │
-├── models/ # Data models
-│ ├── market_data_model.dart
-│ ├── analytics_model.dart
-│ └── portfolio_model.dart
+├── models/                 # Data models
+│   ├── market_data_model.dart
+│   ├── analytics_model.dart
+│   └── portfolio_model.dart
 │
-├── services/ # External services and utilities
-│ ├── api_service.dart # REST API integration
-│ └── analytics_tracker.dart # App analytics and logging
+├── services/              # External services and utilities
+│   ├── api_service.dart        # REST API integration
+│   └── analytics_tracker.dart # App analytics and logging
 │
-├── providers/ # State management (Provider)
-│ ├── market_data_provider.dart
-│ ├── analytics_provider.dart
-│ └── portfolio_provider.dart
+├── providers/            # State management (Provider)
+│   ├── market_data_provider.dart
+│   ├── analytics_provider.dart
+│   └── portfolio_provider.dart
 │
-├── screens/ # UI screens
-│ ├── home_screen.dart
-│ ├── market_data_screen.dart
-│ ├── market_detail_screen.dart
-│ ├── analytics_screen.dart
-│ └── portfolio_screen.dart
+├── screens/              # UI screens
+│   ├── home_screen.dart
+│   ├── market_data_screen.dart
+│   ├── market_detail_screen.dart
+│   ├── analytics_screen.dart
+│   └── portfolio_screen.dart
 │
-└── widgets/ # Reusable UI components (optional / extendable)
+└── widgets/             # Reusable UI components (optional / extendable)
+
 
 
 ---
